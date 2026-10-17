@@ -1,6 +1,6 @@
 // 学习台 app 空壳的 SW（SPEC-v0.5.1-webapp §2.8）：缓存优先，只管同源、作用域内的请求。
 // VERSION 由 rtv-ucilnica/scripts/webapp-stamp.mjs 写。
-const VERSION = 'e294557590';
+const VERSION = '0ce6417816';
 const PREFIX = 'xuexitai-shell-';
 const CACHE = PREFIX + VERSION;
 const ASSETS = ['./', 'index.html', 'shell.css', 'shell.js', 'shell-core.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'];

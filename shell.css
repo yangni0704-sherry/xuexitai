@@ -5,6 +5,12 @@ html[data-dim='true'], html[data-dim='true'] body { background: #a7a9ac; transit
 :root { --t: var(--pad-t, env(safe-area-inset-top, 0px)); --r: var(--pad-r, env(safe-area-inset-right, 0px)); --l: var(--pad-l, env(safe-area-inset-left, 0px)); }
 #app { position: fixed; top: var(--t); left: var(--l); width: calc(100% - var(--l) - var(--r)); height: calc(100% - var(--t) - var(--kb-cut, 0px)); display: block; border: 0; background: #eceef0; transition: opacity 160ms ease-out; }
 html:not([data-state='connected']) #app { opacity: 0; pointer-events: none; }
+/* 等待画面（§11）：没连上时图标 + 一行字，和说明卡同一套图标、次文字色；进来时等 400 ms 再 240 ms 淡入（连得快就不闪），连上时 160 ms 淡出（同 iframe 淡入） */
+#wait { position: fixed; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; box-sizing: border-box; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(56px + env(safe-area-inset-bottom, 0px)); color: #4c5159; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 160ms ease-out, visibility 0s linear 160ms; }
+html[data-state='waiting'] #wait { opacity: 1; visibility: visible; transition: none; animation: wait-in 240ms ease-out 400ms both; }
+@keyframes wait-in { from { opacity: 0; } }
+.wait__icon { display: block; width: 64px; height: 64px; }
+.wait__text { margin: 0; font-size: 15px; line-height: 1.4; }
 #sa { position: fixed; visibility: hidden; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
 #card { position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; box-sizing: border-box; padding: calc(16px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px)); overflow-y: auto; background: #eceef0; }
 #card[hidden] { display: none; }
@@ -21,5 +27,13 @@ html:not([data-state='connected']) #app { opacity: 0; pointer-events: none; }
 .nw { white-space: nowrap; }
 .card__retry { display: block; width: 100%; height: 52px; margin-top: 20px; border: 0; border-radius: 26px; background: #d53a22; color: #fff; font-family: inherit; font-size: 16px; font-weight: 600; line-height: 1; cursor: pointer; }
 .card__retry:focus-visible { outline: 2px solid #16181b; outline-offset: 2px; }
+/* 详情（§11）：重试键下面一行灰小字，展开是几行诊断（整段可长按复制） */
+.card__diag { margin-top: 6px; color: #6b7079; font-size: 13px; }
+.card__diag-sum { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; list-style: none; cursor: pointer; }
+.card__diag-sum::-webkit-details-marker { display: none; }
+.card__diag-sum::after { content: ''; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+.card__diag[open] .card__diag-sum::after { transform: translateY(2px) rotate(-135deg); }
+.card__diag-sum:focus-visible { outline: 2px solid #16181b; outline-offset: -2px; border-radius: 8px; }
+.card .card__diag-body { margin: 2px 0 0; font-size: 12.5px; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; -webkit-user-select: all; user-select: all; }
 .noscript { margin: 0; padding: 40vh 16px 0; text-align: center; font-size: 16px; color: #4c5159; }
-@media (prefers-reduced-motion: reduce) { html, body, #app { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { html, body, #app, #wait { transition: none !important; } html[data-state='waiting'] #wait { animation-duration: 1ms; } }

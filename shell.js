@@ -1,6 +1,9 @@
 // 学习台 app 空壳入口（SPEC-v0.5.1-webapp §2.4）。不碰存储、不调 fetch、不改历史；iframe 建好后不改 src（安卓返回靠共同会话历史）。
 // 往 iframe 只发一种消息：底部安全区 {type: 'pad', b}（targetOrigin 写死扩展源）。iframe 铺到屏幕底，下面那截由扩展页自己让。
-import { IFRAME_SRC, EXT_ORIGIN, ALLOW, THEME, THEME_DIM, parseMessage, createWatch, cardFor, cardModel, richParts, shellUrl, padFrom, padMsg, kbCut, mixHex } from './shell-core.js';
+// （真机反馈修 10-17，§11）没连上时显示等待画面（#wait）；首次没报到自动重载一次 = 换一个新 iframe（先删旧的再放新的：
+//   新 iframe 的第一次载入不进会话历史，本机实测历史条数不变、返回照旧；改 src 会多一条）；页面在后台时停表；
+//   卡上多一行可展开的「详情」（诊断：只在内存里，不存、不发）。
+import { IFRAME_SRC, EXT_ORIGIN, ALLOW, THEME, THEME_DIM, parseMessage, createWatch, cardFor, cardModel, richParts, shellUrl, padFrom, padMsg, kbCut, mixHex, diagLines, edgeVersion } from './shell-core.js';
 
 const doc = document;
 const root = doc.documentElement;
@@ -8,6 +11,9 @@ const cardEl = doc.getElementById('card');
 let frame = null;
 let extInsets = null;
 let sentPad = null;
+let watch = null;
+/** 诊断用的打开方式和前后台记录（只在内存里） */
+const env = { navType: null, discarded: false, startHidden: false, shows: 0, lastShowAt: null, persisted: 0, resumes: 0 };
 
 function el(tag, cls, text) {
   const n = doc.createElement(tag);
@@ -45,6 +51,7 @@ function showCard(kind) {
     b.onclick = () => location.reload();
     box.append(b);
   }
+  if (watch) box.append(diagBox());
   cardEl.setAttribute('role', 'alert');
   cardEl.dataset.card = kind;
   cardEl.replaceChildren(box);
@@ -52,18 +59,39 @@ function showCard(kind) {
   if (frame) frame.inert = true;
 }
 
+/** 卡上的「详情」：灰小字，展开时按现在重算（「距今」是新的），整段可长按复制。 */
+function diagBox() {
+  const det = el('details', 'card__diag');
+  const body = el('p', 'card__diag-body');
+  det.append(el('summary', 'card__diag-sum', '详情'), body);
+  const fill = () => {
+    body.textContent = diagLines({
+      ...watch.diag(),
+      now: performance.now(),
+      env: { ...env },
+      edge: edgeVersion(navigator.userAgent, navigator.userAgentData?.brands),
+      standalone: matchMedia('(display-mode: standalone)').matches,
+    }).join('\n');
+  };
+  fill();
+  det.addEventListener('toggle', () => det.open && fill());
+  return det;
+}
+
 function render(s) {
   const kind = cardFor({ ua: navigator.userAgent, brands: navigator.userAgentData?.brands, ...s });
   if (kind) {
     showCard(kind);
-    setDim(false);
   } else if (cardEl.dataset.card) {
     cardEl.hidden = true;
     delete cardEl.dataset.card;
     cardEl.replaceChildren();
     frame.inert = false;
   }
-  root.dataset.state = kind ? 'card' : s.hello ? 'connected' : 'waiting';
+  const state = kind ? 'card' : s.hello && !s.waiting ? 'connected' : 'waiting';
+  // 出卡、盖等待画面时状态栏不暗（扩展页的暗层看不见了；新载入的页会重新报）
+  if (state !== 'connected') setDim(false);
+  root.dataset.state = state;
 }
 
 // 状态栏跟着扩展页的暗层一起暗下去 / 亮回来（theme-color 按帧过渡：进 200 ms ease-out、出 240 ms ease-in，同抽屉暗层）；四周垫的那几条走 css
@@ -112,7 +140,15 @@ if (window.top !== window) {
   root.dataset.state = 'framed';
   showCard('framed');
 } else {
-  const watch = createWatch({ onChange: render });
+  // 等待画面（图标 + 一行字）：data-state = waiting 时淡入，连上时 160 ms 淡出（shell.css）
+  const wait = el('div');
+  wait.id = 'wait';
+  wait.setAttribute('role', 'status');
+  const wi = el('img', 'wait__icon');
+  wi.src = 'icons/icon-192.png';
+  wi.alt = '';
+  wait.append(wi, el('p', 'wait__text', '正在打开学习台…'));
+  doc.body.append(wait);
   addEventListener('message', (e) => {
     const m = parseMessage(e, frame && frame.contentWindow);
     if (!m) return;
@@ -126,14 +162,50 @@ if (window.top !== window) {
     Object.assign(root.dataset, { ext: m.ext, extLayout: m.layout, storage: m.storage });
     watch.hello(m);
   });
-  frame = el('iframe');
-  frame.id = 'app';
-  frame.title = '学习台';
-  frame.setAttribute('allow', ALLOW);
-  frame.src = IFRAME_SRC;
-  frame.addEventListener('load', () => watch.load());
+  // iframe：只在这里设 src。自动重试 = 换一个新的（旧的先删，新的第一次载入不进会话历史）；旧 iframe 的 load / 报到都不算
+  const makeFrame = () => {
+    const f = el('iframe');
+    f.id = 'app';
+    f.title = '学习台';
+    f.setAttribute('allow', ALLOW);
+    f.src = IFRAME_SRC;
+    f.addEventListener('load', () => f === frame && watch.load());
+    return f;
+  };
+  const retryFrame = () => {
+    const old = frame;
+    frame = makeFrame();
+    old?.remove();
+    doc.body.append(frame);
+  };
+  watch = createWatch({ onChange: render, onRetry: retryFrame });
+  frame = makeFrame();
   doc.body.append(frame);
   watch.start();
+
+  // 打开方式和前后台（诊断用）；页面到后台停表，回到前台重新计（后台冻结时计时器会攒到回前台一齐到点）
+  env.navType = performance.getEntriesByType?.('navigation')?.[0]?.type ?? null;
+  env.discarded = doc.wasDiscarded === true;
+  env.startHidden = doc.visibilityState === 'hidden';
+  if (env.startHidden) watch.pause();
+  const shown = () => {
+    env.lastShowAt = performance.now();
+    watch.resume();
+  };
+  doc.addEventListener('visibilitychange', () => {
+    if (doc.visibilityState === 'hidden') return watch.pause();
+    env.shows++;
+    shown();
+  });
+  addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    env.persisted++;
+    shown();
+  });
+  doc.addEventListener('resume', () => {
+    env.resumes++;
+    if (doc.visibilityState !== 'hidden') watch.resume();
+  });
 
   addEventListener('resize', applyPad);
   const vv = window.visualViewport;
