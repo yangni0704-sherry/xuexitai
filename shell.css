@@ -1,0 +1,25 @@
+/* 学习台 app 空壳（SPEC-v0.5.1-webapp §2.3）：上、左、右 --pad-* 安全区垫；下面 iframe 铺到屏幕底（扩展页自己让手势条），--kb-cut 键盘兜底 */
+html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #eceef0; font-family: system-ui, 'Noto Sans SC', 'PingFang SC', sans-serif; -webkit-tap-highlight-color: transparent; transition: background-color 240ms ease-in; }
+/* 扩展页的抽屉暗层开着：四周垫的那几条跟着暗（同 --color-scrim 压在底色上） */
+html[data-dim='true'], html[data-dim='true'] body { background: #a7a9ac; transition: background-color 200ms ease-out; }
+:root { --t: var(--pad-t, env(safe-area-inset-top, 0px)); --r: var(--pad-r, env(safe-area-inset-right, 0px)); --l: var(--pad-l, env(safe-area-inset-left, 0px)); }
+#app { position: fixed; top: var(--t); left: var(--l); width: calc(100% - var(--l) - var(--r)); height: calc(100% - var(--t) - var(--kb-cut, 0px)); display: block; border: 0; background: #eceef0; transition: opacity 160ms ease-out; }
+html:not([data-state='connected']) #app { opacity: 0; pointer-events: none; }
+#sa { position: fixed; visibility: hidden; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); }
+#card { position: fixed; inset: 0; z-index: 1; display: grid; place-items: center; box-sizing: border-box; padding: calc(16px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px)); overflow-y: auto; background: #eceef0; }
+#card[hidden] { display: none; }
+/* 卡：同学习台的白卡（圆角 22、--shadow-card）；怎么办那段放灰底块（同学习台麦克风提示），路径加粗；重试键 52 高 */
+.card { box-sizing: border-box; width: 100%; max-width: 420px; padding: 24px 20px 20px; border-radius: 22px; background: #fff; color: #16181b; box-shadow: 0 1px 2px rgba(22, 24, 27, 0.04), 0 12px 32px -14px rgba(22, 24, 27, 0.14); }
+.card__icon { display: block; width: 56px; height: 56px; }
+.card__title { margin: 16px 0 8px; font-size: 19px; font-weight: 600; line-height: 1.35; text-wrap: pretty; }
+.card p { margin: 0; text-wrap: pretty; }
+.card .card__body { font-size: 16px; line-height: 1.5; color: #4c5159; }
+.card__note { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: #f3f4f6; font-size: 14px; line-height: 1.55; color: #4c5159; }
+.card__note p + p { margin-top: 6px; }
+.card__note b { color: #16181b; font-weight: 600; }
+.card .card__url { color: #16181b; font-weight: 600; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
+.nw { white-space: nowrap; }
+.card__retry { display: block; width: 100%; height: 52px; margin-top: 20px; border: 0; border-radius: 26px; background: #d53a22; color: #fff; font-family: inherit; font-size: 16px; font-weight: 600; line-height: 1; cursor: pointer; }
+.card__retry:focus-visible { outline: 2px solid #16181b; outline-offset: 2px; }
+.noscript { margin: 0; padding: 40vh 16px 0; text-align: center; font-size: 16px; color: #4c5159; }
+@media (prefers-reduced-motion: reduce) { html, body, #app { transition: none !important; } }

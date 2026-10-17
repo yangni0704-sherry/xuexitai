@@ -1,0 +1,18 @@
+{
+  "id": "/xuexitai/",
+  "name": "学习台",
+  "short_name": "学习台",
+  "description": "学习台扩展的 app 外壳：从主屏幕打开，没有地址栏。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eceef0",
+  "theme_color": "#eceef0",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
